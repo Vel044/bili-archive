@@ -1,7 +1,4 @@
 .DS_Store
 __pycache__/
 *.pyc
-*.flv
-*.hlv
-*.mp4
 _archive/

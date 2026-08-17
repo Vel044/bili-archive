@@ -27,11 +27,11 @@ CID 是核心索引，有了 CID 才能反查 VID。获取方式（按易用性�
    ```
    页面 HTML 内嵌 JSON，含 `cid`、`vid`、`type`、`title`（已验证，如 av39290 → cid=65998）。注意部分视频页 `vid` 为空，需走 Step 2。
 
-2. **BP 主站手动查询**：打开 https://www.biliplus.com/ → 输入 av 号 → GO → 视频信息页 → Tag 下方"视频CID历史"（出错时点"CID数据库"）。CID 历史页可看到 VID 及各期源记录。
+2. **BP 主站手动查询**：打开 https://www.biliplus.com/ → 输入 av 号 → GO → 视频信息页 → Tag 下方"视频CID历史"（出错时点"CID数据库"）。CID 历史页可看到 VID 及各期源记录。多P视频可点"展开更多选项"，在"获取分P列表"中直接输入分P视频编号查询。
 
 3. **相邻 CID 推算**（约 2010-03 ~ 2012-10-17 间删除、BP 无数据的视频）：查询相邻 av 号的 CID（如 av5823 的相邻 av5822/av5824 → cid 8624/8626），夹在中间的 8625 就是目标 CID。
 
-4. **主站"稍后再看"/播放记录卡 CID**：早期删除视频可通过浏览器历史或稍后再看页面的播放请求卡出 cid（配合 BiliPlus-Evolved 油猴插件更方便，脚本：https://delflare505.win/scripts/446841/Biliplus%20Evolved.user.js）。
+4. **主站"稍后再看"/播放记录卡 CID**：早期删除视频可通过浏览器历史或稍后再看页面的播放请求卡出 cid（配合 BiliPlus-Evolved 油猴插件更方便，安装：Tampermonkey 中打开 https://delflare505.win/scripts/446841/Biliplus%20Evolved.user.js → 安装；刷新 BP 后左侧边缘中部出现侧边栏即成功，点"CID反查"输入 CID 可返回 VID）。
 
 ## Step 2：反查 VID 与源类型（已验证接口）
 
@@ -54,7 +54,7 @@ curl -sk "https://hd.biliplus.com/api/cidinfo?cid={CID}"
 |---|---|---|
 | `sina` | ✅ 可抢救（限时！） | 走 Step 4 新浪源下载流程 |
 | `qq` | ⚠️ 基本可用 | `https://v.qq.com/x/page/{vid}.html`，腾讯给早期视频加了审核锁，需人工点"加入审核队列"过审后才能下载；新番/番剧鬼畜等敏感内容建议等风头过去 |
-| `youku` | ⚠️ 需申诉 | `https://v.youku.com/v_show/id_{vid}.html`，失效视频用反馈链接 `https://m.youku.com/feedback/report?deviceType=android&playId={vid}` 申诉（原因写"视频内容正常但无法播放"），一般当天/次日恢复 |
+| `youku` | ⚠️ 需申诉 | `https://v.youku.com/v_show/id_{vid}.html`，失效视频需人工申诉恢复：PC 端打开失效页 → 右下角客服按钮 → 意见反馈 → 填理由"视频内容正常但无法播放"（联系方式可虚构）→ 提交，约一天恢复；手机端打开失效页 → "打开优酷" → 跳转后立即点右上角三点 → 同 PC 申诉流程。快捷链接 `https://m.youku.com/feedback/report?deviceType=android&playId={vid}` |
 | `tudou` | ❌ 失效 | 2023年后数据清空，无法找回 |
 | `letv`（乐视） | ❌ 失效 | 服务器数据已清除，无法找回 |
 | `ku6` / 六间房 | ❌ 失效 | 原站数据清空 |
@@ -79,14 +79,14 @@ curl -sL -o {VID}.hlv "https://cdn.sinacloud.net/edge.v.iask.com/{VID}.hlv"
 下载后 `ffprobe` 检查时长/编码。
 
 ### 情况 B：NoSuchKey（404）→ 分段视频
-主 VID 无法直接取原视频，需扫描其分段 VID（新浪对 ≥6min 视频按 6 分钟一段切分，分段存入新 VID；主 VID 只存调度信息）。
+主 VID 无法直接取原视频，需扫描其分段 VID（新浪对 ≥6min 视频按 6 分钟一段切分——2009-05-01 起实行——分段存入新 VID；主 VID 只存调度信息，与分段 VID 间隔随投稿速度变化）。
 
 **扫描范围**（主 VID 记为 x）：
 - 2009、2010 年视频：`x-5000 ~ x+15000`
 - 2011、2012 年以后：`x ~ x+10000`
 - 伪分段视频（时长≤6min 但实际存储 VID 不对，如 av43001）：`x-50000 ~ x+15000`
 
-**执行**：用本 skill 脚本 `sina_archive.py probe`（并发 HEAD 探测，±500 范围约 1 分钟，实测命中率约 8%）。勿用 IDM 批量任务（易出"有文件但加载不出"的问题）。
+**执行**：用本 skill 脚本 `sina_archive.py probe`（并发 HEAD 探测，±500 范围约 1 分钟，实测命中率约 8%）。勿用 IDM 批量任务（易出"有文件但加载不出"的问题；原教程的 IDM 通配符批量+轮查2遍防漏方案仅在用户明确要求时提供）。
 
 ### 分段识别（关键技巧）
 命中列表中找**连续 VID 簇**（间隔 ≤3，如 42462251/253/255 隔2连排）。强候选特征：

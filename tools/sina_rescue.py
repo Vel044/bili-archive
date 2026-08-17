@@ -100,6 +100,7 @@ def cmd_scan(args):
             csv.writer(f).writerow(header)
 
     n_hit = 0
+    n_503 = 0
     for av in range(args.start, args.end + 1):
         if av in done:
             continue
@@ -109,10 +110,16 @@ def cmd_scan(args):
                 with open(out, "a", newline="") as f:
                     csv.writer(f).writerow([item["av"], item["cid"], item["title"], item["tag"]])
                 n_hit += 1
-                print(f"  ✚ av{av} cid={item['cid']} {item['title'][:50]}")
+                print(f"  ✚ av{av} cid={item['cid']} {item['title'][:50]}", flush=True)
         except urllib.error.HTTPError as e:
             if e.code == 503:
-                time.sleep(5)  # 限流退避
+                n_503 += 1
+                if n_503 >= 3:
+                    print(f"  连续限流, 深度退避 60s…", flush=True)
+                    time.sleep(60)
+                    n_503 = 0
+                else:
+                    time.sleep(15)
             else:
                 time.sleep(2)
         except Exception:
@@ -121,7 +128,7 @@ def cmd_scan(args):
             f.write(f"{av}\n")
         time.sleep(args.gap)
         if (av - args.start + 1) % 200 == 0:
-            print(f"  进度 av{av} 命中 {n_hit}")
+            print(f"  进度 av{av} 命中 {n_hit} (503累计 {n_503})", flush=True)
     print(f"完成: av{args.start}~{args.end} 命中 {n_hit} 条 → {out}")
 
 def cmd_vid(args):
@@ -157,7 +164,7 @@ def main():
     s1.add_argument("--start", type=int, required=True)
     s1.add_argument("--end", type=int, required=True)
     s1.add_argument("--out", default="vocaloid_list.csv")
-    s1.add_argument("--gap", type=float, default=0.5, help="请求间隔秒数(默认0.5, 实测稳定)")
+    s1.add_argument("--gap", type=float, default=2.0, help="请求间隔秒数(默认2.0, 实测2.0s零503)")
     s1.add_argument("--resume", action="store_true", help="断点续传")
     s2 = sub.add_parser("vid")
     s2.add_argument("--in", dest="infile", required=True)
